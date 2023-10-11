@@ -1,6 +1,8 @@
 const xlsx = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+const common = require("oci-common");
+const generative_ai = require("oci-generativeai");
 
 // Constants for API endpoint and parameters
 const ENDPOINT =
@@ -8,7 +10,7 @@ const ENDPOINT =
 const COMPARTMENT_ID =
   "ocid1.compartment.oc1..aaaaaaaaxdgp4qx2uodttcglrsg7b24vkuydba7hbsh6l3meaovxfw4ceybq";
 const MODEL_ID = "cohere.command";
-const MAX_TOKENS = 100;
+const MAX_TOKENS = 150;
 const STOP_SEQUENCE = "Input:";
 const TEMPERATURE = 0;
 const MAX_RPM = 15; //Maximum requests per minute to fire to GenAI (Cohere) service
@@ -72,18 +74,20 @@ async function generateText(prompt) {
     const generateTextRequest = {
       generateTextDetails: generateTextDetails,
     };
-    /*
-        const CONFIG_PROFILE = "DEFAULT";
-        provider = new common.ConfigFileAuthenticationDetailsProvider("config", CONFIG_PROFILE);
-        const generateAiClient = new generative_ai.GenerativeAiClient({
-            authenticationDetailsProvider: provider,
-        });
-        generateAiClient.endpoint = ENDPOINT;
-        const generateTextResponse = await generateAiClient.generateText(generateTextRequest);
-        console.log(JSON.stringify(generateTextResponse.generateTextResult, null, 2));
-        return res.json(generateTextResponse.generateTextResult);
-        */
-    return "<result><question1>no</question1><question2>yes</question2><question3>no</question3><question4>no</question4><question5>no</question5><question6>no</question6><question7>no</question7><question8>no</question8><question9>no</question9><question10>no</question10><question11>no</question11><question12>no</question12><question13>no</question13></result>";
+    const CONFIG_PROFILE = "DEFAULT";
+    provider = new common.ConfigFileAuthenticationDetailsProvider("config", CONFIG_PROFILE);
+    const generateAiClient = new generative_ai.GenerativeAiClient({
+      authenticationDetailsProvider: provider,
+    });
+    generateAiClient.endpoint = ENDPOINT;
+    const generateTextResponse = await generateAiClient.generateText(generateTextRequest);
+    //console.log(JSON.stringify(generateTextResponse.generateTextResult, null, 2));
+    //return res.json(generateTextResponse.generateTextResult);
+    //console.log("generateTextResponse.generateTextResult.generatedTexts[0][0].text", generateTextResponse.generateTextResult.generatedTexts[0][0].text.trim())
+    const result = generateTextResponse.generateTextResult.generatedTexts[0][0].text.trim()
+    //return "test"
+    return result
+    //    return "<result><question1>no</question1><question2>yes</question2><question3>no</question3><question4>no</question4><question5>no</question5><question6>no</question6><question7>no</question7><question8>no</question8><question9>no</question9><question10>no</question10><question11>no</question11><question12>no</question12><question13>no</question13></result>";
   } catch (e) {
     console.log("error: ", e);
     throw e;
@@ -141,11 +145,11 @@ async function processCells() {
 
       console.log(
         "processed " +
-          cellAddress +
-          ", input: " +
-          cellValue +
-          ", output: " +
-          generatedText
+        cellAddress +
+        ", input: " +
+        cellValue +
+        ", output: " +
+        generatedText
       );
 
       generateTextCallCount++; // Increment the counter

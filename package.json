@@ -2,6 +2,7 @@
   "dependencies": {
     "exceljs": "^4.3.0",
     "fs": "^0.0.1-security",
+    "oci-sdk": "^2.70.1-preview-1694034073",
     "path": "^0.12.7",
     "xlsx": "^0.18.5"
   }
