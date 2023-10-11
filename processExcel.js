@@ -2,6 +2,7 @@ const xlsx = require("xlsx");
 const fs = require("fs");
 const path = require("path");
 
+// Constants for API endpoint and parameters
 const ENDPOINT =
   "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com";
 const COMPARTMENT_ID =
@@ -42,11 +43,12 @@ try {
   process.exit(1);
 }
 
-//this is used to wait between requests in order to comply with the rate limit
+//Function to wait between requests in order to comply with the rate limit
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Function to generate text using an API (mocked in this case)
 async function generateText(prompt) {
   try {
     const servingMode = {
@@ -88,6 +90,8 @@ async function generateText(prompt) {
   }
 }
 
+// Function to convert a column label to a number (e.g., A -> 1, Z -> 26, AA -> 27, etc.)
+// We use this to be able to "calculate" with Excel columns
 function colToNum(col) {
   let num = 0;
   for (let i = 0; i < col.length; i++) {
@@ -96,6 +100,8 @@ function colToNum(col) {
   return num;
 }
 
+// Function to convert a number to a column label
+// We use this to be able to "calculate" with Excel columns
 function numToCol(num) {
   let col = "";
   while (num > 0) {
@@ -155,7 +161,6 @@ async function processCells() {
       if (timeToWait > 0) {
         await sleep(timeToWait);
       }
-
     } else {
       console.log("skipped " + cellAddress);
     }
@@ -172,19 +177,12 @@ function saveFile(workbook, filePath) {
   const newFilename = `${originalFilename}${datetime}.xlsx`;
   const newFilePath = path.join(originalDir, newFilename);
   xlsx.writeFile(workbook, newFilePath);
-  console.log(
-    `File has been saved as ${newFilename}.`
-  );
+  console.log(`File has been saved as ${newFilename}.`);
 }
 
 // Execute the process
 try {
   processCells();
 } catch (error) {
-  console.error("Error reading or writing the Excel file: ", error);
+  console.error("Error: ", error);
 }
-
-//your task is:
-//currently this only writes the file at the very end.
-//change this so that it saves the file every 50 calls of generateText (this 50 is to be defined in a constant), and also at the very end.
-//everytime it should have a new filename following the same principle as we already have of datetime.
