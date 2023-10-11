@@ -32,12 +32,21 @@ if (!/^[A-Za-z ]+![A-Z]+\d+:[A-Z]+\d+$/.test(cellRangeToProcess)) {
   process.exit(1);
 }
 
+// Retrieve the basePrompt from prompt.txt
+let basePrompt;
+try {
+  basePrompt = fs.readFileSync("prompt.txt", "utf8");
+} catch (e) {
+  console.error("Error reading the prompt.txt file:", e);
+  process.exit(1);
+}
+
 //this is used to wait between requests in order to comply with the rate limit
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function generateText(prompt) {
+async function generateText(prompt) {
   try {
     console.log("/generateText start");
     const servingMode = {
@@ -72,11 +81,29 @@ function generateText(prompt) {
         console.log(JSON.stringify(generateTextResponse.generateTextResult, null, 2));
         return res.json(generateTextResponse.generateTextResult);
         */
-    return "testresult";
+    return "<result><question1>no</question1><question2>yes</question2><question3>no</question3><question4>no</question4><question5>no</question5><question6>no</question6><question7>no</question7><question8>no</question8><question9>no</question9><question10>no</question10><question11>no</question11><question12>no</question12><question13>no</question13></result>";
   } catch (e) {
     console.log("error: ", e);
     throw e;
   }
+}
+
+function colToNum(col) {
+  let num = 0;
+  for (let i = 0; i < col.length; i++) {
+    num = num * 26 + col.charCodeAt(i) - 64;
+  }
+  return num;
+}
+
+function numToCol(num) {
+  let col = "";
+  while (num > 0) {
+    const modulo = (num - 1) % 26;
+    col = String.fromCharCode(65 + modulo) + col;
+    num = Math.floor((num - modulo) / 26);
+  }
+  return col;
 }
 
 async function processCells() {
@@ -89,29 +116,30 @@ async function processCells() {
   const [startCell, endCell] = cellRange.split(":");
   const startRow = parseInt(startCell.match(/\d+/)[0], 10);
   const endRow = parseInt(endCell.match(/\d+/)[0], 10);
-  const startCol = startCell.match(/[A-Z]+/)[0];
-  const endCol = endCell.match(/[A-Z]+/)[0];
+  const col = startCell.match(/[A-Z]+/)[0];
+  console.log("col", col);
 
   for (let row = startRow; row <= endRow; row++) {
-    for (let col = startCol.charCodeAt(0); col <= endCol.charCodeAt(0); col++) {
-      const cellAddress = String.fromCharCode(col) + row;
-      const nextCellAddress = String.fromCharCode(col + 1) + row;
-      const cellValue = worksheet[cellAddress]
-        ? worksheet[cellAddress].v
-        : null;
+    const cellAddress = col + row;
+    console.log("cellAddress", cellAddress);
 
-      if (!worksheet[nextCellAddress] || !worksheet[nextCellAddress].v) {
-        const startTime = Date.now();
-        const generatedText = await generateText(cellValue);
-        worksheet[nextCellAddress] = { v: generatedText, t: "s" };
+    // Convert the column label to a number, increment it, and convert back to a label
+    const nextCol = numToCol(colToNum(col) + 1);
+    const nextCellAddress = nextCol + row;
+    const cellValue = worksheet[cellAddress] ? worksheet[cellAddress].v : null;
 
-        const endTime = Date.now();
-        const timeTaken = endTime - startTime;
-        const timeToWait = MS_BETWEEN_REQUESTS - timeTaken;
+    if (!worksheet[nextCellAddress] || !worksheet[nextCellAddress].v) {
+      const startTime = Date.now();
+      const fullPrompt = basePrompt + cellValue + "\r\nOutput: ";
+      const generatedText = await generateText(fullPrompt); // Call generateText with full text
+      worksheet[nextCellAddress] = { v: generatedText, t: "s" };
 
-        if (timeToWait > 0) {
-          await sleep(timeToWait);
-        }
+      const endTime = Date.now();
+      const timeTaken = endTime - startTime;
+      const timeToWait = MS_BETWEEN_REQUESTS - timeTaken;
+
+      if (timeToWait > 0) {
+        await sleep(timeToWait);
       }
     }
   }
@@ -138,3 +166,6 @@ try {
 } catch (error) {
   console.error("Error reading or writing the Excel file: ", error);
 }
+
+//your task is:
+//we're trying to set nextCellAddress to the column to the right of the current column (col). how can we do that? keep in mind that the column could also use two letters, e.g. AK.
