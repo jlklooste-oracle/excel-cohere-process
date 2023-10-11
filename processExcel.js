@@ -12,6 +12,7 @@ const STOP_SEQUENCE = "Input:";
 const TEMPERATURE = 0;
 const MAX_RPM = 15; //Maximum requests per minute to fire to GenAI (Cohere) service
 const MS_BETWEEN_REQUESTS = 61000 / MAX_RPM;
+const SAVE_INTERVAL = 10; // Save every X calls to generateText
 
 // Check if file path and cell range are provided
 if (process.argv.length <= 3) {
@@ -116,7 +117,8 @@ async function processCells() {
   const startRow = parseInt(startCell.match(/\d+/)[0], 10);
   const endRow = parseInt(endCell.match(/\d+/)[0], 10);
   const col = startCell.match(/[A-Z]+/)[0];
-  //console.log("col", col);
+
+  let generateTextCallCount = 0; // Counter for generateText calls
 
   for (let row = startRow; row <= endRow; row++) {
     const cellAddress = col + row;
@@ -131,22 +133,36 @@ async function processCells() {
       const generatedText = await generateText(fullPrompt); // Call generateText with full text
       worksheet[nextCellAddress] = { v: generatedText, t: "s" };
 
+      console.log(
+        "processed " +
+          cellAddress +
+          ", input: " +
+          cellValue +
+          ", output: " +
+          generatedText
+      );
+
+      generateTextCallCount++; // Increment the counter
+      // Save file if counter reaches SAVE_INTERVAL or it's the last iteration
+      if (generateTextCallCount >= SAVE_INTERVAL || row === endRow) {
+        saveFile(workbook, filePath);
+        generateTextCallCount = 0; // Reset the counter
+      }
+
       const endTime = Date.now();
       const timeTaken = endTime - startTime;
       const timeToWait = MS_BETWEEN_REQUESTS - timeTaken;
-      console.log("processed " + cellAddress + ", input: " + cellValue + ", output: " + generatedText)
-
       if (timeToWait > 0) {
         await sleep(timeToWait);
       }
-    }
-    else
-    {
-      console.log("skipped " + cellAddress)
+
+    } else {
+      console.log("skipped " + cellAddress);
     }
   }
+}
 
-  // Save a copy of the Excel file with datetime in the filename
+function saveFile(workbook, filePath) {
   const originalFilename = path.basename(filePath, path.extname(filePath));
   const originalDir = path.dirname(filePath);
   const datetime = new Date()
@@ -155,10 +171,9 @@ async function processCells() {
     .split(".")[0];
   const newFilename = `${originalFilename}${datetime}.xlsx`;
   const newFilePath = path.join(originalDir, newFilename);
-
   xlsx.writeFile(workbook, newFilePath);
   console.log(
-    `A copy of the file has been saved as ${newFilename} in the same directory as the original file.`
+    `File has been saved as ${newFilename}.`
   );
 }
 
@@ -170,4 +185,6 @@ try {
 }
 
 //your task is:
-//we're trying to set nextCellAddress to the column to the right of the current column (col). how can we do that? keep in mind that the column could also use two letters, e.g. AK.
+//currently this only writes the file at the very end.
+//change this so that it saves the file every 50 calls of generateText (this 50 is to be defined in a constant), and also at the very end.
+//everytime it should have a new filename following the same principle as we already have of datetime.
