@@ -11,6 +11,7 @@ const MAX_TOKENS = 100;
 const STOP_SEQUENCE = "Input:";
 const TEMPERATURE = 0;
 const MAX_RPM = 15; //Maximum requests per minute to fire to GenAI (Cohere) service
+const MS_BETWEEN_REQUESTS = 61000 / MAX_RPM;
 
 // Check if file path and cell range are provided
 if (process.argv.length <= 3) {
@@ -29,6 +30,11 @@ if (!/^[A-Za-z ]+![A-Z]+\d+:[A-Z]+\d+$/.test(cellRangeToProcess)) {
     "Invalid cell range format. Please use the format 'Worksheet Name!Cell:Cell'."
   );
   process.exit(1);
+}
+
+//this is used to wait between requests in order to comply with the rate limit
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function generateText(prompt) {
@@ -73,8 +79,8 @@ function generateText(prompt) {
   }
 }
 
-// Read the Excel file
-try {
+async function processCells() {
+  // Read the Excel file
   const workbook = xlsx.readFile(filePath);
   const [sheetName, cellRange] = cellRangeToProcess.split("!");
   const worksheet = workbook.Sheets[sheetName];
@@ -86,39 +92,49 @@ try {
   const startCol = startCell.match(/[A-Z]+/)[0];
   const endCol = endCell.match(/[A-Z]+/)[0];
 
-  // Loop through the specified cell range
   for (let row = startRow; row <= endRow; row++) {
     for (let col = startCol.charCodeAt(0); col <= endCol.charCodeAt(0); col++) {
       const cellAddress = String.fromCharCode(col) + row;
       const nextCellAddress = String.fromCharCode(col + 1) + row;
-
       const cellValue = worksheet[cellAddress]
         ? worksheet[cellAddress].v
         : null;
-      const generatedText = generateText(cellValue);
 
-      // Store the result in the adjacent cell on the right
-      worksheet[nextCellAddress] = { v: generatedText, t: "s" }; // 's' indicates the data type is a string
+      if (!worksheet[nextCellAddress] || !worksheet[nextCellAddress].v) {
+        const startTime = Date.now();
+        const generatedText = await generateText(cellValue);
+        worksheet[nextCellAddress] = { v: generatedText, t: "s" };
+
+        const endTime = Date.now();
+        const timeTaken = endTime - startTime;
+        const timeToWait = MS_BETWEEN_REQUESTS - timeTaken;
+
+        if (timeToWait > 0) {
+          await sleep(timeToWait);
+        }
+      }
     }
   }
 
   // Save a copy of the Excel file with datetime in the filename
   const originalFilename = path.basename(filePath, path.extname(filePath));
-  const originalDir = path.dirname(filePath); // Extracting the directory of the original file
+  const originalDir = path.dirname(filePath);
   const datetime = new Date()
     .toISOString()
     .replace(/[:\-T]/g, "")
-    .split(".")[0]; // YYYYMMDDHHmmss format
+    .split(".")[0];
   const newFilename = `${originalFilename}${datetime}.xlsx`;
-
-  // Combining the original directory with the new filename
   const newFilePath = path.join(originalDir, newFilename);
 
   xlsx.writeFile(workbook, newFilePath);
   console.log(
     `A copy of the file has been saved as ${newFilename} in the same directory as the original file.`
   );
+}
+
+// Execute the process
+try {
+  processCells();
 } catch (error) {
   console.error("Error reading or writing the Excel file: ", error);
 }
-
