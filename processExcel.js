@@ -48,7 +48,6 @@ async function sleep(ms) {
 
 async function generateText(prompt) {
   try {
-    console.log("/generateText start");
     const servingMode = {
       modelId: MODEL_ID,
       servingType: "ON_DEMAND",
@@ -63,10 +62,10 @@ async function generateText(prompt) {
       //topP: 0.7,
     };
     if (STOP_SEQUENCE !== undefined && STOP_SEQUENCE !== null) {
-      console.log("adding stopSequences", STOP_SEQUENCE);
+      //console.log("adding stopSequences", STOP_SEQUENCE);
       generateTextDetails.stopSequences = [STOP_SEQUENCE];
     }
-    console.log("message for Cohere generation", generateTextDetails);
+    //console.log("message for Cohere generation", generateTextDetails);
     const generateTextRequest = {
       generateTextDetails: generateTextDetails,
     };
@@ -117,12 +116,10 @@ async function processCells() {
   const startRow = parseInt(startCell.match(/\d+/)[0], 10);
   const endRow = parseInt(endCell.match(/\d+/)[0], 10);
   const col = startCell.match(/[A-Z]+/)[0];
-  console.log("col", col);
+  //console.log("col", col);
 
   for (let row = startRow; row <= endRow; row++) {
     const cellAddress = col + row;
-    console.log("cellAddress", cellAddress);
-
     // Convert the column label to a number, increment it, and convert back to a label
     const nextCol = numToCol(colToNum(col) + 1);
     const nextCellAddress = nextCol + row;
@@ -137,10 +134,15 @@ async function processCells() {
       const endTime = Date.now();
       const timeTaken = endTime - startTime;
       const timeToWait = MS_BETWEEN_REQUESTS - timeTaken;
+      console.log("processed " + cellAddress + ", input: " + cellValue + ", output: " + generatedText)
 
       if (timeToWait > 0) {
         await sleep(timeToWait);
       }
+    }
+    else
+    {
+      console.log("skipped " + cellAddress)
     }
   }
 
