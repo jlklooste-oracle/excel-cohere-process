@@ -15,7 +15,7 @@ const STOP_SEQUENCE = "Input:";
 const TEMPERATURE = 0;
 const MAX_RPM = 15; //Maximum requests per minute to fire to GenAI (Cohere) service
 const MS_BETWEEN_REQUESTS = 61000 / MAX_RPM;
-const SAVE_INTERVAL = 10; // Save every X calls to generateText
+const SAVE_INTERVAL = 100; // Save every X calls to generateText
 
 // Check if file path and cell range are provided
 if (process.argv.length <= 3) {
